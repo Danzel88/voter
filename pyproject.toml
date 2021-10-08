@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "voter"
+version = "0.1.0"
+description = ""
+authors = ["Danzel88 <gecnepago@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.70.0"
+uvicorn = "^0.15.0"
+aiofiles = "^0.7.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
