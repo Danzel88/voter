@@ -9,8 +9,8 @@ class Questions(Base):
 
     id = Column(Integer, primary_key=True)
     text = Column(Text)
-    pros = Column(Integer)
-    cons = Column(Integer)
+    pros = Column(Integer, default=0)
+    cons = Column(Integer, default=0)
     is_active = Column(Boolean)
     author = Column(Integer)
     created_date = Column(Date)

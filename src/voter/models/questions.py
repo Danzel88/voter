@@ -18,4 +18,4 @@ class QuestionOut(QuestionIn):
     id: int
     pros: Optional[int] = 0
     cons: Optional[int] = 0
-
+    created_date: datetime.date
