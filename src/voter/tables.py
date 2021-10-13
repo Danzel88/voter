@@ -22,3 +22,12 @@ class Choice(Base):
     id = Column(Integer, primary_key=True)
     pros = Column(String)
     cons = Column(String)
+
+
+class Users(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(40), nullable=False, unique=True)
+    name = Column(String(40), nullable=False)
+    hashed_password = Column(String, nullable=False)
