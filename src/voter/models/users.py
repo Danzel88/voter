@@ -1,24 +1,22 @@
-from datetime import datetime
-from typing import Optional
-
-from pydantic import EmailStr, BaseModel, UUID4, Field
+from pydantic import EmailStr, BaseModel
 
 
-class UserIn(BaseModel):
+class BaseUser(BaseModel):
     email: EmailStr
-    name: str
+    username: str
+
+
+class UserCreate(BaseUser):
     password: str
 
 
-class UserOut(BaseModel):
+class UserOut(BaseUser):
     id: int
-    name: str
-    email: str
 
     class Config:
         orm_mode = True
 
 
-class UserAuth(BaseModel):
-    email: str
-    password: str
+class Token(BaseModel):
+    access_token: str
+    token_type: str = 'bearer'

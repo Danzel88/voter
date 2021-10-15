@@ -29,5 +29,5 @@ class Users(Base):
 
     id = Column(Integer, primary_key=True)
     email = Column(String(40), nullable=False, unique=True)
-    name = Column(String(40), nullable=False)
+    username = Column(String(40), nullable=False)
     hashed_password = Column(String, nullable=False)

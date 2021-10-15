@@ -1,52 +1,88 @@
+import datetime
 import hashlib
 from typing import List, Optional, Union
 
 from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from passlib.hash import bcrypt
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from fastapi import status
+import jwt
 
 from voter import tables
 from voter.settings import setting
-from voter.database import get_session
-from voter.models.users import UserIn, UserAuth
+
+from voter.database import get_session, Session
+from voter.models.users import UserOut, Token, UserCreate
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/sign-in')
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> UserOut:
+    return User.verify_token(token)
 
 
 class User:
-    def __init__(self, session=Depends(get_session)):
-        self.session = session
+    @classmethod
+    def hash_password(cls, password: str) -> str:
+        return bcrypt.hash(password)
 
     @classmethod
-    def hash_password(cls, password: str, salt: str = setting.salt) -> str:
-        return hashlib.sha256((password + salt).encode()).hexdigest().lower()
+    def verify_password(cls, password: str, hashed_password: str) -> bool:
+        return bcrypt.verify(password, hashed_password)
 
-    def verify_password(self, email: str, password: str, orig_password: str, salt: str = setting.salt) -> bool:
-        hash_password = self.hash_password(password, salt)
-        # orig_password = self.session.query(tables.Users.hashed_password).filter_by(email=email).first()
-        return hash_password == orig_password
-
-    async def get_user_by_email(self, email: str) -> List[tables.Users]:
-        query = self.session.query(tables.Users).filter_by(email=email).first()
-        return await query
-
-    async def create_user(self, user_data: UserIn) -> List[tables.Users]:
-        user = tables.Users(
-            email=user_data.email,
-            name=user_data.name,
-            hashed_password=self.hash_password(user_data.password))
+    @classmethod
+    def verify_token(cls, token: str) -> UserOut:
+        exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate credentials',
+                                  headers={'WWW-Authenticate': 'Bearer'}, )
         try:
-            self.session.add(user)
-            self.session.commit()
-            return user
-        except IntegrityError:
-            return user
-
-    async def get_user(self, user_data: UserAuth) -> List[tables.Users]:
-        exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Incorrect username or password')
-        user = self.session.query(tables.Users).filter_by(email=user_data.email).first()
-        if not user or not self.verify_password(user_data.email, user_data.password, user.hashed_password):
+            payload = jwt.decode(token, setting.jwt_secret, algorithms=setting.jwt_algorithms)
+        except jwt.DecodeError:
+            raise exception
+        user_data = payload.get("user")
+        try:
+            user = UserOut.parse_obj(user_data)
+        except ValidationError:
             raise exception
         return user
 
-#TODO реализовать генерацию и валидацию JWT токкена
+    @classmethod
+    def create_token(cls, user: tables.Users) -> Token:
+        user_data = UserOut.from_orm(user)
+        now = datetime.datetime.utcnow()
+        payload = {
+            'iat': now,
+            'nbf': now,
+            'exp': now + datetime.timedelta(seconds=setting.jwt_expires_s),
+            'sub': str(user_data.id),
+            'user': user_data.dict(),
+        }
+        token = jwt.encode(payload, setting.jwt_secret, algorithm=setting.jwt_algorithms)
+
+        return Token(access_token=token)
+
+    def __init__(self, session: Session = Depends(get_session)):
+        self.session = session
+
+    async def register_new_user(self, user_data: UserCreate) -> Token:
+        user = tables.Users(email=user_data.email,
+                            username=user_data.username,
+                            hashed_password=self.hash_password(user_data.password))
+        self.session.add(user)
+        self.session.commit()
+        return self.create_token(user)
+
+    async def auth_user(self, user_name: str, password: str) -> Token:
+        user = self.session.query(tables.Users).filter_by(username=user_name).first()
+        exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                  detail='Incorrect username or password',
+                                  headers={'WWW-Authenticate': 'Bearer'},
+                                  )
+        if not user:
+            raise exception
+
+        if not self.verify_password(password, user.hashed_password):
+            raise exception
+        return self.create_token(user)
