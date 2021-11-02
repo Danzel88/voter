@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .add_question import router as question_router
+from .question import router as question_router
 from .user import router as user_router
 
 router = APIRouter()

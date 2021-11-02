@@ -9,4 +9,5 @@ class Settings(BaseSettings):
     jwt_expires_s = 3600
     jwt_algorithms = "HS256"
 
+
 setting = Settings()

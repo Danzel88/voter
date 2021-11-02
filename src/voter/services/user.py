@@ -35,11 +35,12 @@ class User:
 
     @classmethod
     def verify_token(cls, token: str) -> UserOut:
-        exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Could not validate credentials',
+        exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                  detail='Could not validate credentials',
                                   headers={'WWW-Authenticate': 'Bearer'}, )
         try:
             payload = jwt.decode(token, setting.jwt_secret, algorithms=setting.jwt_algorithms)
-        except jwt.DecodeError:
+        except (jwt.DecodeError, jwt.ExpiredSignatureError):
             raise exception
         user_data = payload.get("user")
         try:
@@ -64,6 +65,7 @@ class User:
         return Token(access_token=token)
 
     def __init__(self, session: Session = Depends(get_session)):
+        self.id = None
         self.session = session
 
     async def register_new_user(self, user_data: UserCreate) -> Token:
@@ -86,3 +88,6 @@ class User:
         if not self.verify_password(password, user.hashed_password):
             raise exception
         return self.create_token(user)
+
+
+#TODO  Регистарция по почте.

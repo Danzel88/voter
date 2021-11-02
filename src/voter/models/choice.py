@@ -10,8 +10,7 @@ class Choice(Enum):
 
 class BaseChoice(BaseModel):
     id: int
-    pros: str
-    cons: str
+    name: Choice
 
     class Config:
         orm_mode = True
